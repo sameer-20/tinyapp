@@ -57,6 +57,13 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 
+app.post('/urls/:shortURL/delete', (req,res) => { 
+  // Deletes the key-value pair on click of delete button
+  delete urlDatabase[req.params.shortURL];
+  res.redirect("/urls");
+});
+
+
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
 });
