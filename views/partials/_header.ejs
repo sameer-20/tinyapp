@@ -7,8 +7,20 @@
     <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
       <div class="navbar-nav">
         <a class="nav-item nav-link" href="/urls">My URLs</a>
-        <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
+        <a class="nav-item nav-link" href="/urls/new">Create New URL</a>        
       </div>
+      <% if (!username) { %>
+        <form class="form-inline my-2" style="margin-left: 33.5em" method="POST" action="/login">
+            <input class="card-text" type="text" name="username" placeholder="Username" style="width: 300px; margin: 1em">
+            <button type="submit" class="btn btn-outline-dark">Login</button>
+        </form> 
+      <% } else { %>  
+        <form class="form-inline my-2" style="margin-left: 36.5em" method="POST" action="/logout">
+            <p class="card-text">Logged in As: <%= username %>!
+             <button type="submit" style="margin-left: 3em" class="btn btn-outline-dark">  Logout</button>
+            </p>
+        </form>  
+      <% } %>
     </div>
   </nav>
 </header>
