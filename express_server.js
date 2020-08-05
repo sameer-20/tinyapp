@@ -35,6 +35,15 @@ const users = {
   }
 };
 
+// To check if email id exists in users DB
+const userCheck = (email) => {
+  for (let user in users) {
+    if (users[user].email === email) {
+      return false;
+    }
+  }
+  return true;
+};
 
 app.get("/", (req,res) => {
   res.send(`Hello!`);
@@ -122,13 +131,21 @@ app.get('/register', (req,res) => {
 
 // Set cookie on successful registration
 app.post('/register', (req,res) => {
-  
-  let randomId = generateRandomString();
-  users[randomId] = {id: randomId, email: req.body["email"] , password: req.body["password"]};
-  console.log(users);
-  res.cookie('user_id',randomId);
-  res.redirect('/urls');
-})
+  if (req.body.email === "" || req.body.password === "") {
+    console.log("Email ID and/or Password is blank");
+    res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
+  } 
+  else if (!userCheck(req.body.email)) {
+    console.log("Email ID already exists!");
+    res.send(`Error: Status Code: 400. Email ID already exists.`);
+  } else {
+      let randomId = generateRandomString();
+      users[randomId] = {id: randomId, email: req.body["email"] , password: req.body["password"]};
+      console.log(users);
+      res.cookie('user_id',randomId);
+      res.redirect('/urls');
+  }
+});
 
 
 app.listen(PORT, () => {
