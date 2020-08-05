@@ -1,4 +1,4 @@
-//
+// Tiny App
 
 const express = require('express');
 
@@ -22,21 +22,21 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
-const users = { 
+const users = {
   "userRandomID": {
-    id: "userRandomID", 
-    email: "user@example.com", 
+    id: "userRandomID",
+    email: "user@example.com",
     password: "purple-monkey-dinosaur"
   },
- "user2RandomID": {
-    id: "user2RandomID", 
-    email: "user2@example.com", 
+  "user2RandomID": {
+    id: "user2RandomID",
+    email: "user2@example.com",
     password: "dishwasher-funk"
   }
 };
 
 // To check if email id exists in users DB
-const userCheck = (email) => {
+const emailCheck = (email) => {
   for (let user in users) {
     if (users[user].email === email) {
       return users[user];
@@ -110,62 +110,62 @@ app.post('/urls/:shortURL', (req,res) => {
 
 
 app.post('/login', (req,res) => {
-  // Get the username
-  //res.cookie('username',req.body["username"]);
   if (req.body.email === "" || req.body.password === "") {
     console.log("Email ID and/or Password is blank");
     res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
-  } else if (!userCheck(req.body.email)) {
+  } else if (!emailCheck(req.body.email)) {
     console.log("Email ID does not exist!");
-    res.send(`Error: Status Code: 400. Email ID does not exist.`);
-  } else if (userCheck(req.body.email)) {
-    let foundUser = userCheck(req.body.email);
+    res.send(`Error: Status Code: 403. Email ID does not exist.`);
+  } else if (emailCheck(req.body.email)) {
+    let foundUser = emailCheck(req.body.email);
     if (foundUser.password !== req.body.password) {
       console.log("Incorrect password!");
-      res.send(`Error: Status Code: 400. Incorrect password.`);
+      res.send(`Error: Status Code: 403. Incorrect password.`);
     } else {
-      res.cookie('username',req.body["user_id"]);
+      res.cookie('user_id',foundUser.id);
       console.log('Cookies: ', req.cookies);
-      res.redirect("/urls");
+      res.redirect('/urls');
     }
   }
 });
 
 
 app.post('/logout', (req,res) => {
-  //res.clearCookie('username');
   res.clearCookie('user_id');
   res.redirect('/urls');
 });
 
 // User registration page
 app.get('/register', (req,res) => {
-  res.render("user_register");
-})
+  let idVal = req.cookies["user_id"];
+  let templateVars = {user: users[idVal]};
+  res.render("user_register", templateVars);
+});
 
 // Set cookie on successful registration
 app.post('/register', (req,res) => {
   if (req.body.email === "" || req.body.password === "") {
     console.log("Email ID and/or Password is blank");
     res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
-  } 
-  else if (userCheck(req.body.email)) {
+  } else if (emailCheck(req.body.email)) {
     console.log("Email ID already exists!");
     res.send(`Error: Status Code: 400. Email ID already exists.`);
   } else {
-      let randomId = generateRandomString();
-      users[randomId] = {id: randomId, email: req.body["email"] , password: req.body["password"]};
-      console.log(users);
-      res.cookie('user_id',randomId);
-      res.redirect('/urls');
+    let randomId = generateRandomString();
+    users[randomId] = {id: randomId, email: req.body["email"] , password: req.body["password"]};
+    console.log(users);
+    res.cookie('user_id',randomId);
+    res.redirect('/urls');
   }
 });
 
 
 // User login page
 app.get('/login', (req,res) => {
-  res.render("user_login");
-})
+  let idVal = req.cookies["user_id"];
+  let templateVars = {user: users[idVal]};
+  res.render("user_login", templateVars);
+});
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
