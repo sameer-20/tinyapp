@@ -14,12 +14,27 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 
 const cookieParser = require('cookie-parser');
+const { request } = require('express');
 app.use(cookieParser());
 
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
+
+const users = { 
+  "userRandomID": {
+    id: "userRandomID", 
+    email: "user@example.com", 
+    password: "purple-monkey-dinosaur"
+  },
+ "user2RandomID": {
+    id: "user2RandomID", 
+    email: "user2@example.com", 
+    password: "dishwasher-funk"
+  }
+};
+
 
 app.get("/", (req,res) => {
   res.send(`Hello!`);
@@ -34,12 +49,16 @@ app.get("/hello", (req,res) => {
 });
 
 app.get("/urls", (req,res) => {
-  let templateVars = {urls : urlDatabase, username: req.cookies["username"]};
+  let idVal = req.cookies["user_id"];
+  let templateVars = {urls : urlDatabase, user: users[idVal]};
+  console.log(templateVars);
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  let templateVars = { username: req.cookies.username };
+  let idVal = req.cookies["user_id"];
+  //let templateVars = {id: idVal, email: users[idVal].email , password: users[idVal].password};
+  let templateVars = {user: users[idVal]};
   res.render('urls_new', templateVars);
 });
 
@@ -55,7 +74,8 @@ app.post("/urls", (req, res) => {
 
 
 app.get("/urls/:shortURL", (req,res) => {
-  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], username: req.cookies.username};
+  let idVal = req.cookies["user_id"];
+  let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[idVal]};
   res.render("urls_show", templateVars);
 });
 
@@ -82,16 +102,33 @@ app.post('/urls/:shortURL', (req,res) => {
 
 app.post('/login', (req,res) => {
   // Get the username
-  res.cookie('username',req.body["username"]);
+  //res.cookie('username',req.body["username"]);
+  res.cookie('username',req.body["user_id"]);
   console.log('Cookies: ', req.cookies);
   res.redirect("/urls");
 });
 
 
 app.post('/logout', (req,res) => {
-  res.clearCookie('username');
+  //res.clearCookie('username');
+  res.clearCookie('user_id');
   res.redirect('/urls');
 });
+
+// User registration page
+app.get('/register', (req,res) => {
+  res.render("user_register");
+})
+
+// Set cookie on successful registration
+app.post('/register', (req,res) => {
+  
+  let randomId = generateRandomString();
+  users[randomId] = {id: randomId, email: req.body["email"] , password: req.body["password"]};
+  console.log(users);
+  res.cookie('user_id',randomId);
+  res.redirect('/urls');
+})
 
 
 app.listen(PORT, () => {
