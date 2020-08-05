@@ -39,10 +39,10 @@ const users = {
 const userCheck = (email) => {
   for (let user in users) {
     if (users[user].email === email) {
-      return false;
+      return users[user];
     }
   }
-  return true;
+  return false;
 };
 
 app.get("/", (req,res) => {
@@ -112,9 +112,23 @@ app.post('/urls/:shortURL', (req,res) => {
 app.post('/login', (req,res) => {
   // Get the username
   //res.cookie('username',req.body["username"]);
-  res.cookie('username',req.body["user_id"]);
-  console.log('Cookies: ', req.cookies);
-  res.redirect("/urls");
+  if (req.body.email === "" || req.body.password === "") {
+    console.log("Email ID and/or Password is blank");
+    res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
+  } else if (!userCheck(req.body.email)) {
+    console.log("Email ID does not exist!");
+    res.send(`Error: Status Code: 400. Email ID does not exist.`);
+  } else if (userCheck(req.body.email)) {
+    let foundUser = userCheck(req.body.email);
+    if (foundUser.password !== req.body.password) {
+      console.log("Incorrect password!");
+      res.send(`Error: Status Code: 400. Incorrect password.`);
+    } else {
+      res.cookie('username',req.body["user_id"]);
+      console.log('Cookies: ', req.cookies);
+      res.redirect("/urls");
+    }
+  }
 });
 
 
@@ -135,7 +149,7 @@ app.post('/register', (req,res) => {
     console.log("Email ID and/or Password is blank");
     res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
   } 
-  else if (!userCheck(req.body.email)) {
+  else if (userCheck(req.body.email)) {
     console.log("Email ID already exists!");
     res.send(`Error: Status Code: 400. Email ID already exists.`);
   } else {
@@ -147,6 +161,11 @@ app.post('/register', (req,res) => {
   }
 });
 
+
+// User login page
+app.get('/login', (req,res) => {
+  res.render("user_login");
+})
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
