@@ -1,31 +1,35 @@
 // Tiny App
 
 const express = require('express');
-
-const app =  express();
-const PORT = 8080;
-
 const bodyParser = require("body-parser");
+const bcrypt = require('bcrypt'); // To hash the passwords
+const cookieSession = require('cookie-session'); // Simple cookie-based session middleware
 
-// To hash the passwords
-const bcrypt = require('bcrypt');
+const PORT = 8080;
+const SALT_ROUNDS = 10;
 
-// To convert request body from Buffer to string
+// creating an Express app
+const app =  express();
+
+// To parse request body from Buffer to string
 app.use(bodyParser.urlencoded({extended: true}));
 
-// Use ejs as template engine
+// Setting ejs as the template engine
 app.set("view engine", "ejs");
 
-const cookieParser = require('cookie-parser');
-const { request } = require('express');
-app.use(cookieParser());
+// Using cookie session with two keys
+app.use(cookieSession({
+  name: 'session',
+  keys: ['4146fa26-72b8-4caf-be85-d465e73af448', 'd6b96b47-3582-4d9d-83fa-560daab4c45a']
+}));
 
+// In memory database for URLs
 const urlDatabase = {
   b6UTxQ: { longURL: "https://www.tsn.ca", userID: "aJ48lW" },
   i3BoGr: { longURL: "https://www.google.ca", userID: "aJ48lW" }
 };
 
-
+// In memory database for Users
 const users = {
   "userRandomID": {
     id: "userRandomID",
@@ -39,7 +43,7 @@ const users = {
   }
 };
 
-// To check if email id exists in users DB
+// To check if user's email id exists in users DB
 const emailCheck = (email) => {
   for (let user in users) {
     if (users[user].email === email) {
@@ -49,7 +53,7 @@ const emailCheck = (email) => {
   return false;
 };
 
-// Returns the URLs where the userID is equal to the id of the currently logged-in user
+// Returns the URLs if the userID is equal to the id of the currently logged-in user
 const urlsForUser = (id) => {
   const urlObj = {};
   for (let key in urlDatabase) {
@@ -60,12 +64,19 @@ const urlsForUser = (id) => {
   return urlObj;
 };
 
-
 // Returns hashed password
 const hashedPassword = (password) => {
-  const modifiedPassword = bcrypt.hashSync(password, 10);
+  const modifiedPassword = bcrypt.hashSync(password, SALT_ROUNDS);
   return modifiedPassword;
 };
+
+// Creates a random alphanumeric string with 6 characters
+const generateRandomString = () => {
+  const randomStr = Math.random().toString(36).slice(2,8);
+  return randomStr;
+};
+
+// Sample Code to check if the application is working
 
 app.get("/", (req,res) => {
   res.send(`Hello!`);
@@ -79,66 +90,87 @@ app.get("/hello", (req,res) => {
   res.send("<html><body>Hello <b>World</b></body></html>\n");
 });
 
+// CRUD operations
+
+// List all the urls
+// READ
+// GET /urls
+
 app.get("/urls", (req,res) => {
-  let idVal = req.cookies["user_id"];
+  const idVal = req.session.user_id;
   // Users Can Only See Their Own Shortened URLs
   if (!users[idVal]) {
     console.log(`Please log in or register to view the URLs.`);
     res.redirect('/login');
   } else {
-    let filteredURL = urlsForUser(idVal);
-    let templateVars = {urls : filteredURL, user: users[idVal]};
+    const filteredURL = urlsForUser(idVal);
+    const templateVars = {urls : filteredURL, user: users[idVal]};
     console.log(templateVars);
     res.render("urls_index", templateVars);
   }
 });
 
+// Display the urls_new form
+// READ
+// GET /urls/new
 app.get("/urls/new", (req, res) => {
-  let idVal = req.cookies["user_id"];
+  // get the current user
+  // read the user id value from the cookies
+  const idVal = req.session.user_id;
   // Only Registered Users Can Shorten URLs
   if (!users[idVal]) {
     res.redirect('/login');
   } else {
-    let templateVars = {user: users[idVal]};
+    const templateVars = {user: users[idVal]};
     res.render('urls_new', templateVars);
   }
 });
 
+// Add a new url
+// CREATE
+// POST /urls
 
 app.post("/urls", (req, res) => {
-  console.log(req.body);  // Log the POST request body to the console
-  let randomVal = generateRandomString();
+  // extract the url content from the form
+  // content of the form is contained in an object call req.body
+  // req.body is given by the bodyParser middleware
+  const randomVal = generateRandomString();
   //URLs Belong to Users
-  urlDatabase[randomVal] = {longURL: req.body["longURL"], userID: req.cookies["user_id"]};
+  urlDatabase[randomVal] = {longURL: req.body["longURL"], userID: req.session.user_id};
   console.log(urlDatabase);
   res.redirect(`/urls/${randomVal}`);
 });
 
 
+// Edit a url
+// Display the form
+// GET /urls/:shortURL
+
 app.get("/urls/:shortURL", (req,res) => {
-  let idVal = req.cookies["user_id"];
+  const idVal = req.session.user_id;
   // Users Can Only See Their Own Shortened URLs
   if (!users[idVal]) {
     console.log(`Please log in or register to view the URLs.`);
     res.redirect('/login');
   } else {
-    let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[idVal]};
+    const templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[idVal]};
+    // render the show page
     res.render("urls_show", templateVars);
   }
 });
 
-
+// Open the link represented by the longURL
 app.get("/u/:shortURL", (req, res) => {
   const dbLongURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(dbLongURL);
 });
 
-
+// DELETE
 app.post('/urls/:shortURL/delete', (req,res) => {
-  let idVal = req.cookies["user_id"];
+  const idVal = req.session.user_id;
   // Users Can Only delete their own URLs after login
   if (users[idVal]) {
-    // Deletes the key-value pair on click of delete button
+    // Delete the url on click of delete button
     delete urlDatabase[req.params.shortURL];
     res.redirect("/urls");
   } else {
@@ -147,14 +179,14 @@ app.post('/urls/:shortURL/delete', (req,res) => {
   }
 });
 
-
+// Update the url in the urlDatabase
 app.post('/urls/:shortURL', (req,res) => {
   // Updates the longURL on click of Submit button
   urlDatabase[req.params.shortURL].longURL = req.body["longURL"];
   res.redirect("/urls");
 });
 
-
+// Authenticate the user
 app.post('/login', (req,res) => {
   const foundUser = emailCheck(req.body.email);
   if (req.body.email === "" || req.body.password === "") {
@@ -166,31 +198,29 @@ app.post('/login', (req,res) => {
   } else if (foundUser) {
     const result = bcrypt.compareSync(req.body.password, foundUser.password);
     if (result) {
-      res.cookie('user_id',foundUser.id);
-      console.log('Cookies: ', req.cookies);
+      req.session.user_id = foundUser.id;
       res.redirect('/urls');
     } else {
       console.log("Incorrect password!");
-      res.send(`Error: Status Code: 403. Incorrect password.`);    
+      res.send(`Error: Status Code: 403. Incorrect password.`);
     }
   }
 });
 
-
+// On User logout, clear the session
 app.post('/logout', (req,res) => {
-  res.clearCookie('user_id');
-  //res.redirect('/urls');
+  req.session.user_id = null;
   res.redirect('/login');
 });
 
-// User registration page
+// Display the register form
 app.get('/register', (req,res) => {
-  let idVal = req.cookies["user_id"];
-  let templateVars = {user: users[idVal]};
+  const idVal = req.session.user_id;
+  const templateVars = {user: users[idVal]};
   res.render("user_register", templateVars);
 });
 
-// Set cookie on successful registration
+// Get the info from the register form
 app.post('/register', (req,res) => {
   if (req.body.email === "" || req.body.password === "") {
     console.log("Email ID and/or Password is blank");
@@ -203,28 +233,20 @@ app.post('/register', (req,res) => {
     const hashedPwd = hashedPassword(req.body.password);
     users[randomId] = {id: randomId, email: req.body.email , password: hashedPwd};
     console.log(users);
-    res.cookie('user_id',randomId);
+    req.session.user_id = randomId;
     res.redirect('/urls');
   }
 });
 
-
-// User login page
+// Display the login form
 app.get('/login', (req,res) => {
-  let idVal = req.cookies["user_id"];
-  let templateVars = {user: users[idVal]};
+  const idVal = req.session.user_id;
+  const templateVars = {user: users[idVal]};
   res.render("user_login", templateVars);
 });
 
+// App listens to the mentioned PORT
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
 });
 
-
-const generateRandomString = () => {
-  let randomStr = Math.random().toString(36).slice(2,8);
-  return randomStr;
-};
-
-
-console.log(urlDatabase);
