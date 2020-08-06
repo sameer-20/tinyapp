@@ -7,6 +7,9 @@ const PORT = 8080;
 
 const bodyParser = require("body-parser");
 
+// To hash the passwords
+const bcrypt = require('bcrypt');
+
 // To convert request body from Buffer to string
 app.use(bodyParser.urlencoded({extended: true}));
 
@@ -55,6 +58,13 @@ const urlsForUser = (id) => {
     }
   }
   return urlObj;
+};
+
+
+// Returns hashed password
+const hashedPassword = (password) => {
+  const modifiedPassword = bcrypt.hashSync(password, 10);
+  return modifiedPassword;
 };
 
 app.get("/", (req,res) => {
@@ -146,21 +156,22 @@ app.post('/urls/:shortURL', (req,res) => {
 
 
 app.post('/login', (req,res) => {
+  const foundUser = emailCheck(req.body.email);
   if (req.body.email === "" || req.body.password === "") {
     console.log("Email ID and/or Password is blank");
     res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
-  } else if (!emailCheck(req.body.email)) {
+  } else if (!foundUser) {
     console.log("Email ID does not exist!");
     res.send(`Error: Status Code: 403. Email ID does not exist.`);
-  } else if (emailCheck(req.body.email)) {
-    let foundUser = emailCheck(req.body.email);
-    if (foundUser.password !== req.body.password) {
-      console.log("Incorrect password!");
-      res.send(`Error: Status Code: 403. Incorrect password.`);
-    } else {
+  } else if (foundUser) {
+    const result = bcrypt.compareSync(req.body.password, foundUser.password);
+    if (result) {
       res.cookie('user_id',foundUser.id);
       console.log('Cookies: ', req.cookies);
       res.redirect('/urls');
+    } else {
+      console.log("Incorrect password!");
+      res.send(`Error: Status Code: 403. Incorrect password.`);    
     }
   }
 });
@@ -188,8 +199,9 @@ app.post('/register', (req,res) => {
     console.log("Email ID already exists!");
     res.send(`Error: Status Code: 400. Email ID already exists.`);
   } else {
-    let randomId = generateRandomString();
-    users[randomId] = {id: randomId, email: req.body["email"] , password: req.body["password"]};
+    const randomId = generateRandomString();
+    const hashedPwd = hashedPassword(req.body.password);
+    users[randomId] = {id: randomId, email: req.body.email , password: hashedPwd};
     console.log(users);
     res.cookie('user_id',randomId);
     res.redirect('/urls');
