@@ -18,9 +18,10 @@ const { request } = require('express');
 app.use(cookieParser());
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "aJ48lW" },
+  i3BoGr: { longURL: "https://www.google.ca", userID: "aJ48lW" }
 };
+
 
 const users = {
   "userRandomID": {
@@ -45,6 +46,17 @@ const emailCheck = (email) => {
   return false;
 };
 
+// Returns the URLs where the userID is equal to the id of the currently logged-in user
+const urlsForUser = (id) => {
+  const urlObj = {};
+  for (let key in urlDatabase) {
+    if (urlDatabase[key].userID === id) {
+      urlObj[key] = urlDatabase[key];
+    }
+  }
+  return urlObj;
+};
+
 app.get("/", (req,res) => {
   res.send(`Hello!`);
 });
@@ -59,9 +71,16 @@ app.get("/hello", (req,res) => {
 
 app.get("/urls", (req,res) => {
   let idVal = req.cookies["user_id"];
-  let templateVars = {urls : urlDatabase, user: users[idVal]};
-  console.log(templateVars);
-  res.render("urls_index", templateVars);
+  // Users Can Only See Their Own Shortened URLs
+  if (!users[idVal]) {
+    console.log(`Please log in or register to view the URLs.`);
+    res.redirect('/login');
+  } else {
+    let filteredURL = urlsForUser(idVal);
+    let templateVars = {urls : filteredURL, user: users[idVal]};
+    console.log(templateVars);
+    res.render("urls_index", templateVars);
+  }
 });
 
 app.get("/urls/new", (req, res) => {
@@ -72,7 +91,7 @@ app.get("/urls/new", (req, res) => {
   } else {
     let templateVars = {user: users[idVal]};
     res.render('urls_new', templateVars);
-  }  
+  }
 });
 
 
@@ -88,8 +107,14 @@ app.post("/urls", (req, res) => {
 
 app.get("/urls/:shortURL", (req,res) => {
   let idVal = req.cookies["user_id"];
-  let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[idVal]};
-  res.render("urls_show", templateVars);
+  // Users Can Only See Their Own Shortened URLs
+  if (!users[idVal]) {
+    console.log(`Please log in or register to view the URLs.`);
+    res.redirect('/login');
+  } else {
+    let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[idVal]};
+    res.render("urls_show", templateVars);
+  }
 });
 
 
@@ -100,9 +125,16 @@ app.get("/u/:shortURL", (req, res) => {
 
 
 app.post('/urls/:shortURL/delete', (req,res) => {
-  // Deletes the key-value pair on click of delete button
-  delete urlDatabase[req.params.shortURL];
-  res.redirect("/urls");
+  let idVal = req.cookies["user_id"];
+  // Users Can Only delete their own URLs after login
+  if (users[idVal]) {
+    // Deletes the key-value pair on click of delete button
+    delete urlDatabase[req.params.shortURL];
+    res.redirect("/urls");
+  } else {
+    console.log(`Cannot delete URL as user is not logged in.`);
+    res.send(`Cannot delete URL as user is not logged in.`);
+  }
 });
 
 
@@ -136,7 +168,8 @@ app.post('/login', (req,res) => {
 
 app.post('/logout', (req,res) => {
   res.clearCookie('user_id');
-  res.redirect('/urls');
+  //res.redirect('/urls');
+  res.redirect('/login');
 });
 
 // User registration page
