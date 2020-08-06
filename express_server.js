@@ -66,17 +66,21 @@ app.get("/urls", (req,res) => {
 
 app.get("/urls/new", (req, res) => {
   let idVal = req.cookies["user_id"];
-  //let templateVars = {id: idVal, email: users[idVal].email , password: users[idVal].password};
-  let templateVars = {user: users[idVal]};
-  res.render('urls_new', templateVars);
+  // Only Registered Users Can Shorten URLs
+  if (!users[idVal]) {
+    res.redirect('/login');
+  } else {
+    let templateVars = {user: users[idVal]};
+    res.render('urls_new', templateVars);
+  }  
 });
 
 
 app.post("/urls", (req, res) => {
   console.log(req.body);  // Log the POST request body to the console
-  //res.send("Ok");         // Respond with 'Ok' (we will replace this)
   let randomVal = generateRandomString();
-  urlDatabase[randomVal] = req.body["longURL"];  // Save the shortURL-longURL key-value pair
+  //URLs Belong to Users
+  urlDatabase[randomVal] = {longURL: req.body["longURL"], userID: req.cookies["user_id"]};
   console.log(urlDatabase);
   res.redirect(`/urls/${randomVal}`);
 });
@@ -84,14 +88,14 @@ app.post("/urls", (req, res) => {
 
 app.get("/urls/:shortURL", (req,res) => {
   let idVal = req.cookies["user_id"];
-  let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[idVal]};
+  let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[idVal]};
   res.render("urls_show", templateVars);
 });
 
 
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
-  res.redirect(longURL);
+  const dbLongURL = urlDatabase[req.params.shortURL].longURL;
+  res.redirect(dbLongURL);
 });
 
 
@@ -104,7 +108,7 @@ app.post('/urls/:shortURL/delete', (req,res) => {
 
 app.post('/urls/:shortURL', (req,res) => {
   // Updates the longURL on click of Submit button
-  urlDatabase[req.params.shortURL] = req.body["longURL"];
+  urlDatabase[req.params.shortURL].longURL = req.body["longURL"];
   res.redirect("/urls");
 });
 
