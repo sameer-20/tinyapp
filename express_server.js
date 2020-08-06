@@ -4,9 +4,9 @@ const express = require('express');
 const bodyParser = require("body-parser");
 const bcrypt = require('bcrypt'); // To hash the passwords
 const cookieSession = require('cookie-session'); // Simple cookie-based session middleware
+const { getUserByEmail, urlsForUser, hashedPassword, generateRandomString } = require('./helpers');
 
 const PORT = 8080;
-const SALT_ROUNDS = 10;
 
 // creating an Express app
 const app =  express();
@@ -43,38 +43,6 @@ const users = {
   }
 };
 
-// To check if user's email id exists in users DB
-const emailCheck = (email) => {
-  for (let user in users) {
-    if (users[user].email === email) {
-      return users[user];
-    }
-  }
-  return false;
-};
-
-// Returns the URLs if the userID is equal to the id of the currently logged-in user
-const urlsForUser = (id) => {
-  const urlObj = {};
-  for (let key in urlDatabase) {
-    if (urlDatabase[key].userID === id) {
-      urlObj[key] = urlDatabase[key];
-    }
-  }
-  return urlObj;
-};
-
-// Returns hashed password
-const hashedPassword = (password) => {
-  const modifiedPassword = bcrypt.hashSync(password, SALT_ROUNDS);
-  return modifiedPassword;
-};
-
-// Creates a random alphanumeric string with 6 characters
-const generateRandomString = () => {
-  const randomStr = Math.random().toString(36).slice(2,8);
-  return randomStr;
-};
 
 // Sample Code to check if the application is working
 
@@ -103,7 +71,7 @@ app.get("/urls", (req,res) => {
     console.log(`Please log in or register to view the URLs.`);
     res.redirect('/login');
   } else {
-    const filteredURL = urlsForUser(idVal);
+    const filteredURL = urlsForUser(idVal, urlDatabase);
     const templateVars = {urls : filteredURL, user: users[idVal]};
     console.log(templateVars);
     res.render("urls_index", templateVars);
@@ -188,7 +156,7 @@ app.post('/urls/:shortURL', (req,res) => {
 
 // Authenticate the user
 app.post('/login', (req,res) => {
-  const foundUser = emailCheck(req.body.email);
+  const foundUser = getUserByEmail(req.body.email, users);
   if (req.body.email === "" || req.body.password === "") {
     console.log("Email ID and/or Password is blank");
     res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
@@ -225,7 +193,7 @@ app.post('/register', (req,res) => {
   if (req.body.email === "" || req.body.password === "") {
     console.log("Email ID and/or Password is blank");
     res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
-  } else if (emailCheck(req.body.email)) {
+  } else if (getUserByEmail(req.body.email, users)) {
     console.log("Email ID already exists!");
     res.send(`Error: Status Code: 400. Email ID already exists.`);
   } else {
