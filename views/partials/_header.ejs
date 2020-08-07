@@ -10,8 +10,10 @@
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>        
       </div>
       <% if (!user) { %>
-          <a class="nav-item nav-link" style="margin-left: 47.5em" href="/register">Register</a>
-          <a class="nav-item nav-link" style="margin-left: 0.5em" href="/login">Login</a>        
+        <div class="navbar-nav">
+          <a class="nav-item nav-link" style="margin-left: 47.5em" href="/login">Login</a> 
+          <a class="nav-item nav-link" style="margin-left: 0.5em" href="/register">Register</a>    
+        </div>   
       <% } else { %>  
         <form class="form-inline my-2" style="margin-left: 32.5em" method="POST" action="/logout">
             <p class="card-text">Logged in As: <%= user.email %>!

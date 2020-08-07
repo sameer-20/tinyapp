@@ -44,36 +44,32 @@ const users = {
 };
 
 
-// Sample Code to check if the application is working
+// CRUD operations
 
 app.get("/", (req,res) => {
-  res.send(`Hello!`);
+  // get the current user
+  // read the user id value from the cookies and redirect accordingly if logged in or not
+  const currentUser = req.session.user_id;
+  if (!users[currentUser]) {
+    res.redirect('/login');
+  } else {
+    res.redirect('/urls');
+  }
 });
-
-app.get("/urls.json", (req,res) => {
-  res.json(urlDatabase);
-});
-
-app.get("/hello", (req,res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
-
-// CRUD operations
 
 // List all the urls
 // READ
 // GET /urls
 
 app.get("/urls", (req,res) => {
-  const idVal = req.session.user_id;
+  const currentUser = req.session.user_id;
   // Users Can Only See Their Own Shortened URLs
-  if (!users[idVal]) {
-    console.log(`Please log in or register to view the URLs.`);
-    res.redirect('/login');
+  if (!users[currentUser]) {
+    const templateVars = {error: false, statusCode: "", message: ""};
+    res.render("urls_error", templateVars);
   } else {
-    const filteredURL = urlsForUser(idVal, urlDatabase);
-    const templateVars = {urls : filteredURL, user: users[idVal]};
-    console.log(templateVars);
+    const filteredURL = urlsForUser(currentUser, urlDatabase);
+    const templateVars = {urls : filteredURL, user: users[currentUser]};
     res.render("urls_index", templateVars);
   }
 });
@@ -84,12 +80,12 @@ app.get("/urls", (req,res) => {
 app.get("/urls/new", (req, res) => {
   // get the current user
   // read the user id value from the cookies
-  const idVal = req.session.user_id;
+  const currentUser = req.session.user_id;
   // Only Registered Users Can Shorten URLs
-  if (!users[idVal]) {
+  if (!users[currentUser]) {
     res.redirect('/login');
   } else {
-    const templateVars = {user: users[idVal]};
+    const templateVars = {user: users[currentUser]};
     res.render('urls_new', templateVars);
   }
 });
@@ -99,58 +95,62 @@ app.get("/urls/new", (req, res) => {
 // POST /urls
 
 app.post("/urls", (req, res) => {
-  // extract the url content from the form
-  // content of the form is contained in an object call req.body
-  // req.body is given by the bodyParser middleware
-  const randomVal = generateRandomString();
-  //URLs Belong to Users
-  urlDatabase[randomVal] = {longURL: req.body["longURL"], userID: req.session.user_id};
-  console.log(urlDatabase);
-  res.redirect(`/urls/${randomVal}`);
+  const currentUser = req.session.user_id;
+  if (users[currentUser]) {
+    // extract the url content from the form
+    // content of the form is contained in an object call req.body
+    // req.body is given by the bodyParser middleware
+    const randomVal = generateRandomString();
+    //URLs Belong to Users
+    urlDatabase[randomVal] = {longURL: req.body["longURL"], userID: req.session.user_id};
+    res.redirect(`/urls/${randomVal}`);
+  } else {
+    const templateVars = {error: false, statusCode: "", message: ""};
+    res.render("urls_error", templateVars);
+  }
 });
 
 
 // Edit a url
 // Display the form
-// GET /urls/:shortURL
+// GET /urls/:id
 
-app.get("/urls/:shortURL", (req,res) => {
-  const idVal = req.session.user_id;
+app.get("/urls/:id", (req,res) => {
+  const currentUser = req.session.user_id;
   // Users Can Only See Their Own Shortened URLs
-  if (!users[idVal]) {
-    console.log(`Please log in or register to view the URLs.`);
-    res.redirect('/login');
+  if (!users[currentUser]) {
+    const templateVars = {error: false, statusCode: "", message: ""};
+    res.render("urls_error", templateVars);
   } else {
-    const templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[idVal]};
-    // render the show page
+    const templateVars = {id: req.params.id, longURL: urlDatabase[req.params.id].longURL, user: users[currentUser]};
     res.render("urls_show", templateVars);
   }
 });
 
 // Open the link represented by the longURL
-app.get("/u/:shortURL", (req, res) => {
-  const dbLongURL = urlDatabase[req.params.shortURL].longURL;
+app.get("/u/:id", (req, res) => {
+  const dbLongURL = urlDatabase[req.params.id].longURL;
   res.redirect(dbLongURL);
 });
 
 // DELETE
-app.post('/urls/:shortURL/delete', (req,res) => {
-  const idVal = req.session.user_id;
+app.post('/urls/:id/delete', (req,res) => {
+  const currentUser = req.session.user_id;
   // Users Can Only delete their own URLs after login
-  if (users[idVal]) {
+  if (users[currentUser]) {
     // Delete the url on click of delete button
-    delete urlDatabase[req.params.shortURL];
+    delete urlDatabase[req.params.id];
     res.redirect("/urls");
   } else {
-    console.log(`Cannot delete URL as user is not logged in.`);
-    res.send(`Cannot delete URL as user is not logged in.`);
+    const templateVars = {error: false, statusCode: "", message: ""};
+    res.render("urls_error", templateVars);
   }
 });
 
 // Update the url in the urlDatabase
-app.post('/urls/:shortURL', (req,res) => {
+app.post('/urls/:id', (req,res) => {
   // Updates the longURL on click of Submit button
-  urlDatabase[req.params.shortURL].longURL = req.body["longURL"];
+  urlDatabase[req.params.id].longURL = req.body["longURL"];
   res.redirect("/urls");
 });
 
@@ -158,63 +158,68 @@ app.post('/urls/:shortURL', (req,res) => {
 app.post('/login', (req,res) => {
   const foundUser = getUserByEmail(req.body.email, users);
   if (req.body.email === "" || req.body.password === "") {
-    console.log("Email ID and/or Password is blank");
-    res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
+    const templateVars = {error: true, statusCode: 400, message: "Email ID and/or Password cannot be blank"};
+    res.render("urls_error", templateVars);
   } else if (!foundUser) {
-    console.log("Email ID does not exist!");
-    res.send(`Error: Status Code: 403. Email ID does not exist.`);
+    const templateVars = {error: true, statusCode: 403, message: "Email ID does not exist"};
+    res.render("urls_error", templateVars);
   } else if (foundUser) {
     const result = bcrypt.compareSync(req.body.password, foundUser.password);
     if (result) {
       req.session.user_id = foundUser.id;
       res.redirect('/urls');
     } else {
-      console.log("Incorrect password!");
-      res.send(`Error: Status Code: 403. Incorrect password.`);
+      const templateVars = {error: true, statusCode: 403, message: "Incorrect password"};
+      res.render("urls_error", templateVars);
     }
   }
 });
 
 // On User logout, clear the session
 app.post('/logout', (req,res) => {
-  req.session.user_id = null;
-  res.redirect('/login');
+  req.session = null;
+  res.redirect('/urls');
 });
 
-// Display the register form
+// Display the register form if not logged in else redirect to '/urls' if logged in
 app.get('/register', (req,res) => {
-  const idVal = req.session.user_id;
-  const templateVars = {user: users[idVal]};
-  res.render("user_register", templateVars);
+  const currentUser = req.session.user_id;
+  if (!users[currentUser]) {
+    const templateVars = {user: users[currentUser]};
+    res.render("user_register", templateVars);
+  } else {
+    res.redirect('/urls');
+  }
 });
 
 // Get the info from the register form
 app.post('/register', (req,res) => {
   if (req.body.email === "" || req.body.password === "") {
-    console.log("Email ID and/or Password is blank");
-    res.send(`Error: Status Code: 400. Email ID and/or Password cannot be blank.`);
+    const templateVars = {error: true, statusCode: 400, message: "Email ID and/or Password cannot be blank"};
+    res.render("urls_error", templateVars);
   } else if (getUserByEmail(req.body.email, users)) {
-    console.log("Email ID already exists!");
-    res.send(`Error: Status Code: 400. Email ID already exists.`);
+    const templateVars = {error: true, statusCode: 400, message: "Email ID already exists"};
+    res.render("urls_error", templateVars);
   } else {
     const randomId = generateRandomString();
     const hashedPwd = hashedPassword(req.body.password);
     users[randomId] = {id: randomId, email: req.body.email , password: hashedPwd};
-    console.log(users);
     req.session.user_id = randomId;
     res.redirect('/urls');
   }
 });
 
-// Display the login form
+// Display the login form if not logged in else redirect to '/urls' if logged in
 app.get('/login', (req,res) => {
-  const idVal = req.session.user_id;
-  const templateVars = {user: users[idVal]};
-  res.render("user_login", templateVars);
+  const currentUser = req.session.user_id;
+  if (!users[currentUser]) {
+    const templateVars = {user: users[currentUser]};
+    res.render("user_login", templateVars);
+  } else {
+    res.redirect('/urls');
+  }
 });
 
 // App listens to the mentioned PORT
-app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}`);
-});
+app.listen(PORT, () => {});
 
