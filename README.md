@@ -4,8 +4,11 @@ TinyApp is a full stack web application built with Node and Express that allows 
 
 ## Final Product
 
-!["screenshot description"](#)
-!["screenshot description"](#)
+!["Screenshot of user login page"](https://github.com/sameer-20/tinyapp/blob/master/docs/login_page.png)
+!["Screenshot of user registration page"](https://github.com/sameer-20/tinyapp/blob/master/docs/register_page.png)
+!["Screenshot of tinyURL creation page"](https://github.com/sameer-20/tinyapp/blob/master/docs/createTinyURL_page.png)
+!["Screenshot of edit URL page"](https://github.com/sameer-20/tinyapp/blob/master/docs/editURL_page.png)
+!["Screenshot of URL list page"](https://github.com/sameer-20/tinyapp/blob/master/docs/myURLs_page.png)
 
 ## Dependencies
 
