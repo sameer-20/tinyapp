@@ -117,41 +117,81 @@ app.post("/urls", (req, res) => {
 
 app.get("/urls/:id", (req,res) => {
   const currentUser = req.session.user_id;
-  // Users Can Only See Their Own Shortened URLs
+  const urlId = req.params.id;
+  // Throw error if user is not logged in
   if (!users[currentUser]) {
     const templateVars = {error: false, statusCode: "", message: ""};
     res.render("urls_error", templateVars);
   } else {
-    const templateVars = {id: req.params.id, longURL: urlDatabase[req.params.id].longURL, user: users[currentUser]};
-    res.render("urls_show", templateVars);
+    // Throw error if requested URL does not exist
+    if (!urlDatabase[urlId]) {
+      const templateVars = {error: true, statusCode: 404, message: "Requested resource not found"};
+      res.render("urls_error", templateVars);
+    } else if (urlDatabase[urlId].userID !== currentUser) {
+      // Throw error if requested URL does not belong to the user
+      const templateVars = {error: true, statusCode: 403, message: "Access Denied"};
+      res.render("urls_error", templateVars);
+    } else {
+      const templateVars = {id: req.params.id, longURL: urlDatabase[req.params.id].longURL, user: users[currentUser]};
+      res.render("urls_show", templateVars);
+    }
   }
 });
 
 // Open the link represented by the longURL
 app.get("/u/:id", (req, res) => {
   const dbLongURL = urlDatabase[req.params.id].longURL;
-  res.redirect(dbLongURL);
+  if (dbLongURL === "") {
+    const templateVars = {error: true, statusCode: 404, message: "Requested resource does not exist"};
+    res.render("urls_error", templateVars);
+  } else {
+    res.redirect(dbLongURL);
+  }
 });
 
 // DELETE
 app.post('/urls/:id/delete', (req,res) => {
   const currentUser = req.session.user_id;
-  // Users Can Only delete their own URLs after login
-  if (users[currentUser]) {
-    // Delete the url on click of delete button
-    delete urlDatabase[req.params.id];
-    res.redirect("/urls");
-  } else {
+  const urlId = req.params.id;
+  // Throw error if user is not logged in
+  if (!users[currentUser]) {
     const templateVars = {error: false, statusCode: "", message: ""};
     res.render("urls_error", templateVars);
+  } else {
+    // Throw error if requested URL does not exist
+    if (!urlDatabase[urlId]) {
+      const templateVars = {error: true, statusCode: 404, message: "Requested resource not found"};
+      res.render("urls_error", templateVars);
+    } else if (urlDatabase[urlId].userID !== currentUser) {
+      // Throw error if requested URL does not belong to the user
+      const templateVars = {error: true, statusCode: 403, message: "Access Denied"};
+      res.render("urls_error", templateVars);
+    } else {
+      delete urlDatabase[req.params.id]; // Delete the url on click of delete button
+      res.redirect("/urls");
+    }
   }
 });
 
 // Update the url in the urlDatabase
 app.post('/urls/:id', (req,res) => {
-  // Updates the longURL on click of Submit button
-  urlDatabase[req.params.id].longURL = req.body["longURL"];
-  res.redirect("/urls");
+  const currentUser = req.session.user_id;
+  const urlId = req.params.id;
+  // Throw error if user is not logged in
+  if (!users[currentUser]) {
+    const templateVars = {error: false, statusCode: "", message: ""};
+    res.render("urls_error", templateVars);
+  } else {
+    // Throw error if requested URL does not belong to the user
+    if (urlDatabase[urlId].userID !== currentUser) {
+      const templateVars = {error: true, statusCode: 403, message: "Access Denied"};
+      res.render("urls_error", templateVars);
+    } else {
+      // Update the longURL on click of Submit button
+      urlDatabase[req.params.id].longURL = req.body["longURL"];
+      res.redirect("/urls");
+    }
+  }
 });
 
 // Authenticate the user
